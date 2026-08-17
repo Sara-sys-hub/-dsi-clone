@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSI - Digital Sorting Interface | TE Connectivity (Clone pédagogique)</title>
+<style>
+  :root{
+    --navy:#2b3648;
+    --navy-dark:#1f2836;
+    --orange:#f4732b;
+    --teal:#15b8a6;
+    --teal-dark:#0e9384;
+    --grey-bg:#f4f6f8;
+    --border:#e3e7ec;
+    --text:#33404f;
+    --text-light:#7a8797;
+    --danger:#e04b4b;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:var(--grey-bg);color:var(--text);}
+  a{text-decoration:none;color:inherit;}
+
+  /* ---------- LAB BANNER ---------- */
+  .lab-banner{
+    background:repeating-linear-gradient(45deg,#fff3cd,#fff3cd 12px,#ffe8a3 12px,#ffe8a3 24px);
+    color:#5c4300;font-size:13px;text-align:center;padding:6px 10px;font-weight:600;
+    border-bottom:2px solid #e0b400;
+  }
+
+  /* ---------- NAVBAR ---------- */
+  nav{
+    background:var(--navy);height:60px;display:flex;align-items:center;
+    justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:50;
+  }
+  .nav-left{display:flex;align-items:center;gap:36px;}
+  .logo{
+    background:var(--orange);color:#fff;font-weight:800;letter-spacing:.5px;
+    padding:7px 14px;border-radius:4px;font-size:19px;display:flex;align-items:center;gap:9px;
+    font-family:Arial,Helvetica,sans-serif;font-style:italic;
+  }
+  .logo .bars{display:flex;flex-direction:column;gap:3px;}
+  .logo .bars .bar{height:5px;background:#fff;border-radius:3px;}
+  .logo .bars .bar.b1{width:22px;margin-left:8px;}
+  .logo .bars .bar.b2{width:22px;}
+  .logo .bars .bar.b3{width:18px;margin-left:4px;}
+  .logo .te-text{font-size:20px;font-weight:900;}
+  .nav-links{display:flex;gap:28px;}
+  .nav-links a{color:#cbd3dd;font-size:14.5px;font-weight:500;transition:color .15s;cursor:pointer;}
+  .nav-links a:hover, .nav-links a.active{color:#fff;}
+  .nav-right{display:flex;gap:10px;align-items:center;}
+  .btn{border:none;border-radius:6px;padding:9px 18px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s;}
+  .btn-teal{background:var(--teal);color:#fff;}
+  .btn-teal:hover{background:var(--teal-dark);}
+  .btn-outline{background:transparent;border:1px solid var(--teal);color:var(--teal);}
+  .btn-outline:hover{background:rgba(21,184,166,.1);}
+  .user-chip{color:#fff;font-size:13.5px;display:flex;align-items:center;gap:8px;}
+  .user-chip .dot{width:8px;height:8px;border-radius:50%;background:#22c55e;}
+
+  /* ---------- PAGES ---------- */
+  .page{display:none;}
+  .page.active{display:block;}
+
+  /* ---- HOME ---- */
+  .home-wrap{display:flex;align-items:center;gap:60px;padding:70px 60px;max-width:1300px;margin:0 auto;}
+  .wordcloud{flex:1;background:#f4f6f8;border-radius:8px;padding:0;min-height:360px;overflow:hidden;display:flex;align-items:center;}
+  .wordcloud img{width:100%;height:auto;display:block;}
+  .home-text{flex:1;}
+  .home-text h1{font-size:34px;color:var(--navy);margin-bottom:8px;}
+  .home-text p{color:var(--text-light);font-size:15px;margin-bottom:26px;}
+  .enterdata-wrap{display:flex;gap:24px;padding:36px 60px;flex-wrap:wrap;}
+  .plant-card{background:#fff;border:1px solid var(--border);border-radius:8px;width:230px;padding:24px 20px 20px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  .plant-name{text-align:center;font-size:26px;font-weight:800;color:var(--navy);margin-bottom:26px;}
+  .plant-row{display:flex;gap:8px;border-top:1px solid var(--border);padding-top:14px;}
+  .plant-row input{flex:1;padding:9px 11px;border:1px solid var(--border);border-radius:6px;font-size:13px;min-width:0;}
+  .go-btn{padding:9px 16px;font-size:13.5px;}
+
+  /* ---- MODALS ---- */
+  .modal-overlay{
+    display:none;position:fixed;inset:0;background:rgba(20,25,35,.55);z-index:200;
+    align-items:center;justify-content:center;
+  }
+  .modal-overlay.active{display:flex;}
+  .modal{background:#fff;border-radius:10px;padding:32px 36px;width:420px;max-width:92vw;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.25);}
+  .modal.wide{width:640px;}
+  .modal h2{color:var(--teal-dark);margin:0 0 6px;font-size:22px;}
+  .modal .sub{font-weight:700;color:var(--navy);margin:0 0 2px;font-size:16px;}
+  .modal .hint{color:var(--text-light);font-size:13px;margin-bottom:20px;}
+  .modal-close{position:absolute;top:18px;right:20px;cursor:pointer;color:var(--text-light);font-size:18px;background:none;border:none;}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .form-grid.single{grid-template-columns:1fr;}
+  .field{position:relative;}
+  .field input, .field select{
+    width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:#fff;color:var(--text);
+  }
+  .field input:focus, .field select:focus{outline:none;border-color:var(--teal);}
+  .field .eye{position:absolute;right:12px;top:12px;cursor:pointer;color:var(--text-light);font-size:14px;}
+  .forgot{display:block;text-align:right;font-size:12.5px;color:var(--teal-dark);margin:6px 0 14px;cursor:pointer;}
+  .submit-btn{
+    width:100%;background:var(--teal);color:#fff;border:none;border-radius:6px;padding:12px;font-size:15px;font-weight:600;cursor:pointer;
+  }
+  .submit-btn:hover{background:var(--teal-dark);}
+  .switch-line{margin-top:16px;text-align:center;font-size:13px;color:var(--text-light);}
+  .switch-line a{color:var(--teal-dark);font-weight:600;cursor:pointer;}
+  .err-msg{background:#fdecec;color:var(--danger);border:1px solid #f6c3c3;padding:9px 12px;border-radius:6px;font-size:13px;margin-bottom:14px;display:none;}
+  .ok-msg{background:#e7f9f4;color:var(--teal-dark);border:1px solid #b6ecdf;padding:9px 12px;border-radius:6px;font-size:13px;margin-bottom:14px;display:none;}
+
+  /* ---- DASHBOARD ---- */
+  .dash-wrap{padding:22px 28px;max-width:1600px;margin:0 auto;}
+  .filter-bar{
+    display:flex;align-items:center;gap:16px;background:#fff;border:1px solid var(--border);
+    border-radius:8px;padding:14px 18px;margin-bottom:20px;flex-wrap:wrap;
+  }
+  .filter-bar .fb-item{display:flex;align-items:center;gap:8px;font-size:14px;}
+  .filter-bar select{padding:8px 12px;border:1px solid var(--border);border-radius:6px;min-width:180px;}
+  .grid2{display:grid;grid-template-columns:1fr 2fr;gap:20px;margin-bottom:20px;}
+  .card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:20px;}
+  .card-total{background:linear-gradient(135deg,#0e9384,#15b8a6);color:#fff;position:relative;}
+  .card-total h3{margin:0 0 4px;font-size:16px;}
+  .card-total p{margin:0;font-size:12.5px;opacity:.85;}
+  .card-total .big{font-size:38px;font-weight:800;margin-top:26px;}
+  .card-target{border-left:4px solid var(--danger);}
+  .card-target h4{margin:0 0 4px;font-size:15px;color:var(--navy);}
+  .card-target p{margin:0 0 14px;font-size:12.5px;color:var(--text-light);}
+  .toggle-group{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-right:16px;}
+  .toggle-group button{border:none;background:#fff;padding:8px 16px;font-size:13.5px;cursor:pointer;color:var(--text-light);}
+  .toggle-group button.active{background:var(--navy);color:#fff;}
+  .target-num{color:var(--danger);font-weight:800;font-size:20px;float:right;}
+  .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;}
+  .chart-card h4{margin:0 0 14px;font-size:15px;color:var(--navy);display:flex;justify-content:space-between;}
+  .chart-card svg{display:block;width:100%;height:auto;}
+  .legend{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:10px;font-size:11.5px;color:var(--text-light);}
+  .legend .li{display:flex;align-items:center;gap:5px;}
+  .legend .sw{width:9px;height:9px;border-radius:2px;display:inline-block;}
+  .legend .sw.line{border-radius:50%;}
+  .nok-card{display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:center;}
+  .nok-donut{position:relative;}
+  .nok-list{max-height:260px;overflow-y:auto;}
+  .nok-row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #f0f2f5;font-size:13.5px;}
+  .nok-row .name{display:flex;align-items:center;gap:8px;}
+  .nok-row .swatch{width:9px;height:9px;border-radius:50%;}
+  .nok-row .num{text-align:right;}
+  .nok-row .num small{display:block;color:var(--text-light);font-size:11px;}
+
+  /* ---- DATA TABLE ---- */
+  .data-filters{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:16px 18px;margin-bottom:16px;}
+  .data-filters .field label{font-size:12px;color:var(--text-light);display:block;margin-bottom:4px;}
+  .data-filters .field input{padding:9px 10px;font-size:13px;}
+  .table-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  table.data-table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden;font-size:13px;}
+  table.data-table th{background:#f7f9fb;text-align:left;padding:11px 12px;color:var(--text-light);font-weight:600;border-bottom:1px solid var(--border);white-space:nowrap;}
+  table.data-table td{padding:10px 12px;border-bottom:1px solid #f0f2f5;color:var(--text);}
+  .shift-chip{background:#fde9d0;color:#b5590a;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;}
+  .pagination{display:flex;justify-content:flex-end;gap:6px;margin-top:14px;align-items:center;}
+  .pagination button{border:1px solid var(--border);background:#fff;padding:6px 11px;border-radius:6px;cursor:pointer;font-size:13px;}
+  .pagination button.active{background:var(--teal);color:#fff;border-color:var(--teal);}
+
+  /* ---- FOCUS ---- */
+  .focus-wrap{padding:22px 28px;max-width:1600px;margin:0 auto;}
+  .notice{background:#eef2f7;color:var(--text-light);font-size:13px;padding:10px 14px;border-radius:6px;margin-bottom:18px;}
+  .focus-grid{display:grid;grid-template-columns:280px 1fr;gap:20px;}
+  .focus-pct{font-size:38px;font-weight:800;color:var(--danger);text-align:center;margin:10px 0 0;}
+  .focus-empty{color:var(--text-light);font-size:13.5px;padding:14px 0;text-align:center;}
+
+  .gate-msg{max-width:520px;margin:80px auto;text-align:center;background:#fff;border:1px solid var(--border);border-radius:10px;padding:40px;}
+  .gate-msg h3{color:var(--navy);}
+  .gate-msg p{color:var(--text-light);font-size:14px;}
+  footer{text-align:center;padding:20px;color:var(--text-light);font-size:12px;}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-left">
+    <div class="logo">
+      <div class="bars"><div class="bar b1"></div><div class="bar b2"></div><div class="bar b3"></div></div>
+      <span class="te-text">TE</span>
+    </div>
+    <div class="nav-links">
+      <a data-page="home" class="active">Home</a>
+      <a data-page="enterdata">Enter data</a>
+      <a data-page="data">Data</a>
+      <a data-page="dashboard">Dashboard</a>
+      <a data-page="focus">Focus</a>
+    </div>
+  </div>
+  <div class="nav-right" id="navRight">
+    <button class="btn btn-outline" onclick="openModal('signin')">Sign In</button>
+    <button class="btn btn-teal" onclick="openModal('signup')">Sign Up</button>
+  </div>
+</nav>
+
+<!-- ================= HOME ================= -->
+<div class="page active" id="page-home">
+  <div class="home-wrap">
+    <div class="wordcloud" id="wordcloud"><img src="quality-wordcloud.jpg" alt="Quality wordcloud"></div>
+    <div class="home-text">
+      <h1>Welcome to DSI</h1>
+      <p>Digital Sorting Interface.</p>
+      <button class="btn btn-teal" style="padding:12px 26px;font-size:15px;" onclick="openModal('signup')">Get Started</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ENTER DATA ================= -->
+<div class="page" id="page-enterdata">
+  <div class="enterdata-wrap">
+    <div class="plant-card">
+      <div class="plant-name">L74</div>
+      <div class="plant-row">
+        <input type="password" id="l74-code" placeholder="Plant Access Code">
+        <button class="btn btn-teal go-btn" onclick="checkPlantCode('L74','l74-code')">go</button>
+      </div>
+    </div>
+    <div class="plant-card">
+      <div class="plant-name">TM2</div>
+      <div class="plant-row">
+        <input type="password" id="tm2-code" placeholder="Plant Access Code">
+        <button class="btn btn-teal go-btn" onclick="checkPlantCode('TM2','tm2-code')">go</button>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- ================= DASHBOARD ================= -->
+<div class="page" id="page-dashboard">
+  <div class="dash-wrap" id="dashboard-gate-wrap">
+  <div class="filter-bar">
+    <span style="font-weight:600;">▽ Hide filter</span>
+    <button class="btn btn-teal" style="padding:8px 14px;">⟳ Refresh</button>
+    <div class="fb-item"><input type="checkbox"> <div><b>Part Number</b><br><small style="color:var(--text-light)">All part numbers</small></div></div>
+    <select style="margin-left:auto;"><option>Select PN</option><option>1718109-1</option><option>1544976-2</option><option>1801154-6</option></select>
+  </div>
+
+  <div class="grid2">
+    <div class="card card-total">
+      <h3>Daily sorting total</h3>
+      <p>3 shifts combined · 06:00 → 06:00</p>
+      <div class="big" id="dailyTotal">0</div>
+    </div>
+    <div class="card card-target">
+      <span class="target-num">0 <small style="font-size:12px;color:var(--text-light);">/ Daily</small></span>
+      <h4>Sorting output target</h4>
+      <p>Per day / week · missing = 0 · monthly grows as daily targets are added</p>
+      <div class="toggle-group">
+        <button class="active">Daily</button><button>Weekly</button>
+      </div>
+      <input type="date" value="2026-08-17" style="padding:8px 10px;border:1px solid var(--border);border-radius:6px;">
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="card chart-card">
+      <h4>Sorting Daily Output <span class="toggle-group"><button class="active">Daily</button><button>Weekly</button></span></h4>
+      <div class="legend" id="legendDaily"></div>
+      <div id="chartDaily"></div>
+    </div>
+    <div class="card chart-card">
+      <h4>Sorting Monthly Output</h4>
+      <div class="legend" id="legendMonthly"></div>
+      <div id="chartMonthly"></div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="card chart-card">
+      <h4>Sorting Daily Output - Sorting Type</h4>
+      <div class="legend" id="legendDailyType"></div>
+      <div id="chartDailyType"></div>
+    </div>
+    <div class="card chart-card">
+      <h4>Sorting Monthly Output - Sorting Type</h4>
+      <div class="legend" id="legendMonthlyType"></div>
+      <div id="chartMonthlyType"></div>
+    </div>
+  </div>
+
+  <div class="card nok-card">
+    <div class="nok-donut">
+      <div id="chartNok"></div>
+    </div>
+    <div>
+      <h4 style="margin-top:0;">NOK by PN &amp; Reason</h4>
+      <div class="nok-list" id="nokList"></div>
+
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- ================= DATA ================= -->
+<div class="page" id="page-data">
+  <div class="dash-wrap" id="data-gate-wrap">
+    <div class="data-filters">
+      <div class="field"><label>From</label><input type="date" value="2026-04-17"></div>
+      <div class="field"><label>To</label><input type="date" value="2026-08-17"></div>
+      <div class="field"><label>Plant</label><input placeholder="All plants"></div>
+      <div class="field"><label>Machine</label><input placeholder="All machines"></div>
+      <div class="field"><label>Area</label><input placeholder="All areas"></div>
+      <div class="field"><label>Order</label><input placeholder="Order #"></div>
+      <div class="field"><label>Part Number</label><input placeholder="PN"></div>
+      <div class="field"><label>Batch</label><input placeholder="Batch #"></div>
+    </div>
+    <div class="table-toolbar">
+      <button class="btn btn-teal" style="padding:8px 14px;">⟳ Refresh Data</button>
+      <button class="btn btn-outline" onclick="exportCsv()">⬇ Export</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead><tr>
+          <th>Date &amp; time</th><th>Shift</th><th>License Tag No</th><th>Area</th><th>PN</th>
+          <th>Order</th><th>Quantity OK</th><th>Quantity NOK</th><th>Reason</th><th>Batch</th><th>Machine</th><th>Type</th>
+        </tr></thead>
+        <tbody id="dataTableBody"></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+</div>
+
+<!-- ================= FOCUS ================= -->
+<div class="page" id="page-focus">
+  <div class="focus-wrap" id="focus-gate-wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <h2 style="margin:0;color:var(--navy);">Focus</h2>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <select style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;"><option>L74</option><option>L32</option><option>L05</option></select>
+        <button class="btn btn-teal" style="padding:8px 14px;">⟳ Refresh</button>
+      </div>
+    </div>
+    <div class="notice">View only — contact a Chef or Admin to add PNs or change status.</div>
+    <div class="focus-grid">
+      <div class="card">
+        <h4 style="margin-top:0;">PN Under Focus</h4>
+        <div class="focus-pct">0%</div>
+        <p style="text-align:center;color:var(--text-light);font-size:13px;">UNDER FOCUS<br>0 / 0</p>
+        <div style="height:10px;border-radius:5px;background:#e3e7ec;overflow:hidden;display:flex;">
+          <div style="width:0%;background:var(--danger);"></div>
+        </div>
+        <p style="color:var(--danger);font-size:13px;margin:10px 0 2px;">Yes (Under Focus): 0</p>
+        <p style="color:var(--text-light);font-size:13px;margin:0;">No: 0</p>
+      </div>
+      <div class="card">
+        <table class="data-table" style="border:none;">
+          <thead><tr><th>PN</th><th>Under Focus</th><th>Focus start</th><th>Qty OK</th><th>Qty NOK</th></tr></thead>
+          <tbody><tr><td colspan="5" class="focus-empty">No Focus PNs for the selected plant(s).</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>Clone pédagogique local — DSI / TE Connectivity — à usage exclusif d'audit de sécurité (PFA). Aucune connexion à un système réel.</footer>
+
+<!-- ============ SIGN IN MODAL ============ -->
+<div class="modal-overlay" id="overlay-signin">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('signin')">✕</button>
+    <h2>Sign In</h2>
+    <p class="sub">Welcome back !</p>
+    <p class="hint">Please enter your account details.</p>
+    <div class="err-msg" id="signin-err">Identifiants invalides. Réessayez.</div>
+    <div class="ok-msg" id="signin-ok">Connexion réussie ! Redirection…</div>
+    <div class="field" style="margin-bottom:14px;">
+      <input type="text" id="si-username" placeholder="Username (TE Id)">
+    </div>
+    <div class="field">
+      <input type="password" id="si-password" placeholder="Password">
+      <span class="eye" onclick="togglePw('si-password')">👁</span>
+    </div>
+    <span class="forgot" onclick="alert('Fonction fictive — aucun e-mail ne sera envoyé (démo).')">Forgot Password?</span>
+    <button class="submit-btn" onclick="doSignIn()">Sign In</button>
+    <div class="switch-line">Pas de compte ? <a onclick="switchModal('signin','signup')">Sign Up</a></div>
+  </div>
+</div>
+
+<!-- ============ SIGN UP MODAL ============ -->
+<div class="modal-overlay" id="overlay-signup">
+  <div class="modal wide">
+    <button class="modal-close" onclick="closeModal('signup')">✕</button>
+    <h2>Registration form</h2>
+    <p class="hint">Complete the form below to create your account. All fields are required.</p>
+    <div class="err-msg" id="signup-err"></div>
+    <div class="ok-msg" id="signup-ok">Compte créé (fictif) ! Vous pouvez maintenant vous connecter.</div>
+    <div class="form-grid">
+      <div class="field"><input id="su-fullname" placeholder="Fullname"></div>
+      <div class="field"><input id="su-teid" placeholder="TE Id"></div>
+    </div>
+    <div class="form-grid single" style="margin-top:14px;">
+      <div class="field"><input id="su-email" placeholder="Email address" type="email"></div>
+    </div>
+    <div class="form-grid" style="margin-top:14px;">
+      <div class="field"><input id="su-pw" placeholder="Password" type="password"><span class="eye" onclick="togglePw('su-pw')">👁</span></div>
+      <div class="field"><input id="su-pw2" placeholder="Confirm password" type="password"><span class="eye" onclick="togglePw('su-pw2')">👁</span></div>
+    </div>
+    <div class="form-grid" style="margin-top:14px;">
+      <div class="field">
+        <select id="su-dept">
+          <option value="">Department</option><option>Quality</option><option>Production</option><option>Maintenance</option><option>IT</option>
+        </select>
+      </div>
+      <div class="field">
+        <select id="su-plant">
+          <option value="">Plant</option><option>L74</option><option>L32</option><option>L05</option>
+        </select>
+      </div>
+    </div>
+    <button class="submit-btn" style="margin-top:18px;" onclick="doSignUp()">✓ Create account</button>
+    <div class="switch-line">Déjà inscrit ? <a onclick="switchModal('signup','signin')">Sign In</a></div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   FAKE / DEMO DATA — tout est généré côté client, aucune vraie donnée TE
+   ===================================================================== */
+
+// ---- fake user directory (in-memory only) ----
+let USERS = [
+  {teid:'admin.te', password:'Admin@1234', fullname:'Admin Demo', role:'Admin'},
+  {teid:'j.dupont', password:'Passw0rd!', fullname:'Jean Dupont', role:'Operator'}
+];
+let currentUser = null;
+
+// ---- navigation ----
+const pages = ['home','enterdata','data','dashboard','focus'];
+document.querySelectorAll('.nav-links a').forEach(a=>{
+  a.addEventListener('click', ()=> goPage(a.dataset.page));
+});
+function goPage(name){
+  pages.forEach(p=>{
+    document.getElementById('page-'+p).classList.toggle('active', p===name);
+  });
+  document.querySelectorAll('.nav-links a').forEach(a=>a.classList.toggle('active', a.dataset.page===name));
+  updateGates();
+}
+
+function updateGates(){
+  // Enter data page is now the public plant-selection screen (no login gate).
+}
+
+const PLANT_CODES = { L74:'1234', TM2:'5678' };
+function checkPlantCode(plant, inputId){
+  const val = document.getElementById(inputId).value.trim();
+  if(!val){ alert('Entrez un code d\'accès pour '+plant+'.'); return; }
+  if(val === PLANT_CODES[plant]){
+    alert('Accès autorisé pour '+plant+' (démo). Formulaire de saisie à venir.');
+  } else {
+    alert('Code d\'accès invalide pour '+plant+'.');
+  }
+}
+
+// ---- modal handling ----
+function openModal(name){ document.getElementById('overlay-'+name).classList.add('active'); }
+function closeModal(name){ document.getElementById('overlay-'+name).classList.remove('active'); }
+function switchModal(from,to){ closeModal(from); openModal(to); }
+function togglePw(id){
+  const el = document.getElementById(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+function doSignIn(){
+  const u = document.getElementById('si-username').value.trim();
+  const p = document.getElementById('si-password').value;
+  const err = document.getElementById('signin-err');
+  const ok = document.getElementById('signin-ok');
+  const match = USERS.find(usr => usr.teid === u && usr.password === p);
+  if(match){
+    err.style.display='none'; ok.style.display='block';
+    currentUser = match;
+    setTimeout(()=>{
+      closeModal('signin'); ok.style.display='none';
+      refreshNavRight(); updateGates();
+    }, 700);
+  } else {
+    ok.style.display='none';
+    err.textContent = 'Identifiants invalides. Réessayez.';
+    err.style.display='block';
+  }
+}
+
+function doSignUp(){
+  const fullname = document.getElementById('su-fullname').value.trim();
+  const teid = document.getElementById('su-teid').value.trim();
+  const email = document.getElementById('su-email').value.trim();
+  const pw = document.getElementById('su-pw').value;
+  const pw2 = document.getElementById('su-pw2').value;
+  const dept = document.getElementById('su-dept').value;
+  const plant = document.getElementById('su-plant').value;
+  const err = document.getElementById('signup-err');
+  const ok = document.getElementById('signup-ok');
+
+  if(!fullname||!teid||!email||!pw||!pw2||!dept||!plant){
+    ok.style.display='none'; err.textContent='Tous les champs sont requis.'; err.style.display='block'; return;
+  }
+  if(pw !== pw2){
+    ok.style.display='none'; err.textContent='Les mots de passe ne correspondent pas.'; err.style.display='block'; return;
+  }
+  if(USERS.find(u=>u.teid===teid)){
+    ok.style.display='none'; err.textContent='Ce TE Id existe déjà.'; err.style.display='block'; return;
+  }
+  USERS.push({teid, password:pw, fullname, role:'Operator'});
+  err.style.display='none'; ok.style.display='block';
+  setTimeout(()=>{ switchModal('signup','signin'); ok.style.display='none'; }, 900);
+}
+
+function refreshNavRight(){
+  const el = document.getElementById('navRight');
+  if(currentUser){
+    el.innerHTML = `<span class="user-chip"><span class="dot"></span>${currentUser.fullname} (${currentUser.teid})</span>
+      <button class="btn btn-outline" onclick="doSignOut()">Sign Out</button>`;
+  } else {
+    el.innerHTML = `<button class="btn btn-outline" onclick="openModal('signin')">Sign In</button>
+      <button class="btn btn-teal" onclick="openModal('signup')">Sign Up</button>`;
+  }
+}
+function doSignOut(){
+  currentUser = null;
+  refreshNavRight();
+  updateGates();
+  goPage('home');
+}
+
+/* wordcloud on the home page is now a static image (quality-wordcloud.jpg) — no JS needed */
+
+/* =====================================================================
+   MINI SVG CHART ENGINE (no external library — works fully offline)
+   ===================================================================== */
+const SVGNS = 'http://www.w3.org/2000/svg';
+function svgTag(tag, attrs){
+  const el = document.createElementNS(SVGNS, tag);
+  for(const k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
+}
+function niceMax(v){
+  if(v<=0) return 10;
+  const mag = Math.pow(10, Math.floor(Math.log10(v)));
+  const norm = v/mag;
+  let step = norm<=1?1:norm<=2?2:norm<=5?5:10;
+  return step*mag;
+}
+function fmtNum(v){
+  if(v>=1000000) return (v/1000000).toFixed(v%1000000===0?0:1)+'M';
+  if(v>=1000) return (v/1000).toFixed(v%1000===0?0:1)+'k';
+  return v;
+}
+function renderLegend(elId, items){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  el.innerHTML = items.map(it=>`<span class="li"><span class="sw ${it.line?'line':''}" style="background:${it.color}"></span>${it.name}</span>`).join('');
+}
+
+// Combo chart: stacked bars (left axis) + optional lines (left or right axis)
+function renderComboChart(containerId, labels, barSeries, lineSeries){
+  const W=800,H=300, padL=58, padR = lineSeries.some(l=>l.axisRight)?52:18, padT=16, padB=34;
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+  const n=labels.length, groupW=plotW/n, barW=Math.min(groupW*0.55, 30);
+
+  const totals = labels.map((_,i)=> barSeries.reduce((s,se)=>s+(se.data[i]||0),0));
+  const leftCandidates = totals.concat(lineSeries.filter(l=>!l.axisRight).flatMap(l=>l.data));
+  const leftMax = niceMax(Math.max(...leftCandidates,1)*1.12);
+  const rightVals = lineSeries.filter(l=>l.axisRight).flatMap(l=>l.data);
+  const rightMax = niceMax(Math.max(...rightVals,1)*1.15);
+
+  const y = v => padT + plotH - (v/leftMax*plotH);
+  const yR = v => padT + plotH - (v/rightMax*plotH);
+  const xC = i => padL + i*groupW + groupW/2;
+
+  const svg = svgTag('svg',{viewBox:`0 0 ${W} ${H}`});
+
+  // gridlines + left axis labels
+  const ticks=5;
+  for(let t=0;t<=ticks;t++){
+    const val = leftMax*t/ticks;
+    const yy = y(val);
+    svg.appendChild(svgTag('line',{x1:padL,x2:W-padR,y1:yy,y2:yy,stroke:'#eef1f4','stroke-width':1}));
+    const lbl = svgTag('text',{x:padL-8,y:yy+3,'text-anchor':'end','font-size':10,fill:'#8b97a6'});
+    lbl.textContent = fmtNum(Math.round(val));
+    svg.appendChild(lbl);
+  }
+  if(lineSeries.some(l=>l.axisRight)){
+    for(let t=0;t<=ticks;t++){
+      const val = rightMax*t/ticks;
+      const yy = yR(val);
+      const lbl = svgTag('text',{x:W-padR+8,y:yy+3,'text-anchor':'start','font-size':10,fill:'#8b97a6'});
+      lbl.textContent = fmtNum(Math.round(val));
+      svg.appendChild(lbl);
+    }
+  }
+  // axis baseline
+  svg.appendChild(svgTag('line',{x1:padL,x2:padL,y1:padT,y2:padT+plotH,stroke:'#cfd6de','stroke-width':1}));
+  svg.appendChild(svgTag('line',{x1:padL,x2:W-padR,y1:padT+plotH,y2:padT+plotH,stroke:'#cfd6de','stroke-width':1}));
+
+  // stacked bars
+  labels.forEach((_,i)=>{
+    let cum=0;
+    barSeries.forEach(se=>{
+      const v = se.data[i]||0;
+      const yTop = y(cum+v), yBot = y(cum);
+      svg.appendChild(svgTag('rect',{
+        x:xC(i)-barW/2, y:yTop, width:barW, height:Math.max(yBot-yTop,0),
+        fill:se.color, rx:1
+      }));
+      cum+=v;
+    });
+  });
+
+  // x-axis labels
+  const skip = n>20?2:1;
+  labels.forEach((lb,i)=>{
+    if(i%skip!==0 && i!==n-1) return;
+    const t = svgTag('text',{x:xC(i),y:padT+plotH+16,'text-anchor':'middle','font-size':9.5,fill:'#8b97a6'});
+    t.textContent = lb;
+    svg.appendChild(t);
+  });
+
+  // lines
+  lineSeries.forEach(ls=>{
+    const fn = ls.axisRight ? yR : y;
+    const pts = labels.map((_,i)=> `${xC(i)},${fn(ls.data[i]||0)}`).join(' ');
+    const poly = svgTag('polyline',{points:pts, fill:'none', stroke:ls.color, 'stroke-width':2, 'stroke-linejoin':'round', 'stroke-linecap':'round'});
+    if(ls.dashed) poly.setAttribute('stroke-dasharray','5,4');
+    svg.appendChild(poly);
+    if(!ls.dashed){
+      labels.forEach((_,i)=>{
+        svg.appendChild(svgTag('circle',{cx:xC(i), cy:fn(ls.data[i]||0), r:2.6, fill:ls.color}));
+      });
+    }
+  });
+
+  const el = document.getElementById(containerId);
+  el.innerHTML='';
+  el.appendChild(svg);
+}
+
+// Simple stacked bar chart (no lines) — used for "Sorting Type" breakdown
+function renderStackedBars(containerId, labels, series){
+  renderComboChart(containerId, labels, series, []);
+}
+
+// Donut chart
+function renderDonut(containerId, data){
+  const total = data.reduce((s,d)=>s+d.val,0) || 1;
+  const size=180, r=68, cx=size/2, cy=size/2, sw=32;
+  const circ = 2*Math.PI*r;
+  const svg = svgTag('svg',{viewBox:`0 0 ${size} ${size}`});
+  const grp = svgTag('g',{transform:`rotate(-90 ${cx} ${cy})`});
+  let cum=0;
+  data.forEach(d=>{
+    const frac = d.val/total;
+    const len = frac*circ;
+    const circle = svgTag('circle',{
+      cx, cy, r, fill:'none', stroke:d.color, 'stroke-width':sw,
+      'stroke-dasharray':`${len} ${circ-len}`, 'stroke-dashoffset': -cum
+    });
+    grp.appendChild(circle);
+    cum += len;
+  });
+  svg.appendChild(grp);
+  const totalText = svgTag('text',{x:cx,y:cy-4,'text-anchor':'middle','font-size':20,'font-weight':800,fill:'#2b3648'});
+  totalText.textContent = total.toLocaleString('en-US');
+  const subText = svgTag('text',{x:cx,y:cy+16,'text-anchor':'middle','font-size':10,fill:'#8b97a6'});
+  subText.textContent = 'Total NOK';
+  svg.appendChild(totalText); svg.appendChild(subText);
+  const el = document.getElementById(containerId);
+  el.innerHTML=''; el.appendChild(svg);
+}
+
+/* =====================================================================
+   FAKE DASHBOARD DATA
+   ===================================================================== */
+const dailyLabels = ['01 Aug','02 Aug','03 Aug','04 Aug','05 Aug','06 Aug','07 Aug','08 Aug','09 Aug','10 Aug','11 Aug','12 Aug','13 Aug','14 Aug','15 Aug','16 Aug','17 Aug'];
+const dailyOK  = [1370000,700000,1500000,1420000,1260000,1250000,1050000,1270000,880000,1200000,1260000,1610000,1560000,1080000,780000,260000,510000];
+const dailyNOK = [ 30000, 15000, 40000, 35000, 25000, 20000, 15000, 30000, 15000, 25000, 20000, 40000, 60000, 20000, 15000,  5000, 15000];
+const dailyUsers = [160,80,199,176,163,159,143,131,88,114,121,187,180,110,80,44,66];
+
+const monthLabels = ['January','February','March','April','May','June','July','August'];
+const monthOK  = [0,0,700000,13500000,14000000,17500000,34500000,18500000];
+const monthNOK = [0,0,30000,300000,300000,400000,900000,400000];
+const monthUsers = [0,0,60,1000,1000,760,972,810];
+
+const target = new Array(17).fill(0);
+
+renderComboChart('chartDaily', dailyLabels,
+  [
+    {name:'QTY OK', color:'#3fc4e0', data:dailyOK},
+    {name:'QTY NOK', color:'#8892a0', data:dailyNOK}
+  ],
+  [
+    {name:'Unique Users', color:'#f4a63b', data:dailyUsers, axisRight:true},
+    {name:'Target', color:'#e04b4b', data:target, dashed:true}
+  ]
+);
+renderLegend('legendDaily', [
+  {name:'QTY OK', color:'#3fc4e0'}, {name:'QTY NOK', color:'#8892a0'},
+  {name:'Unique Users', color:'#f4a63b', line:true}, {name:'Target', color:'#e04b4b', line:true}
+]);
+
+renderComboChart('chartMonthly', monthLabels,
+  [
+    {name:'QTY OK', color:'#15b8a6', data:monthOK},
+    {name:'QTY NOK', color:'#8892a0', data:monthNOK}
+  ],
+  [
+    {name:'Unique Users', color:'#f4a63b', data:monthUsers, axisRight:true},
+    {name:'Target', color:'#e04b4b', data:new Array(8).fill(0), dashed:true}
+  ]
+);
+renderLegend('legendMonthly', [
+  {name:'QTY OK', color:'#15b8a6'}, {name:'QTY NOK', color:'#8892a0'},
+  {name:'Unique Users', color:'#f4a63b', line:true}, {name:'Target', color:'#e04b4b', line:true}
+]);
+
+// sorting type breakdown (stacked) — fake split of daily totals
+const sortTypes = ['100%','200%','BBS','BBS following Boxes','QN','Safelaunch','Sorting by Sampling'];
+const typeColors = ['#f4a63b','#3fc4e0','#8b5cf6','#22c55e','#334155','#6366f1','#e04b4b'];
+function splitTotals(totals){
+  return sortTypes.map((t,i)=>{
+    if(i===0) return totals.map(v=>Math.round(v*0.78));
+    const frac = [0,0.06,0.03,0.05,0.03,0.03,0.02][i];
+    return totals.map(v=>Math.round(v*frac));
+  });
+}
+const dailyTotals = dailyOK.map((v,i)=>v+dailyNOK[i]);
+const dailySplit = splitTotals(dailyTotals);
+renderStackedBars('chartDailyType', dailyLabels, sortTypes.map((t,i)=>({name:t, color:typeColors[i], data:dailySplit[i]})));
+renderLegend('legendDailyType', sortTypes.map((t,i)=>({name:t, color:typeColors[i]})));
+
+const monthTotals = monthOK.map((v,i)=>v+monthNOK[i]);
+const monthSplit = splitTotals(monthTotals);
+renderStackedBars('chartMonthlyType', monthLabels, sortTypes.map((t,i)=>({name:t, color:typeColors[i], data:monthSplit[i]})));
+renderLegend('legendMonthlyType', sortTypes.map((t,i)=>({name:t, color:typeColors[i]})));
+
+// daily total card
+document.getElementById('dailyTotal').textContent = dailyTotals[dailyTotals.length-1].toLocaleString('en-US');
+
+// NOK reasons
+const nokReasons = [
+  {name:'Bavure', val:737356, color:'#15b8a6'},
+  {name:'Contamination', val:303698, color:'#3fc4e0'},
+  {name:'Endommagement', val:219718, color:'#d97706'},
+  {name:'Brûlure', val:174377, color:'#0e9384'},
+  {name:'Manque matière', val:164733, color:'#065f46'},
+  {name:'problème marquage', val:163567, color:'#475569'},
+  {name:'Corps étranger', val:120000, color:'#e04b4b'},
+  {name:'Autre', val:303205, color:'#94a3b8'}
+];
+const nokTotal = nokReasons.reduce((a,r)=>a+r.val,0);
+renderDonut('chartNok', nokReasons.map(r=>({val:r.val, color:r.color})));
+const nokListEl = document.getElementById('nokList');
+nokReasons.forEach(r=>{
+  const pct = ((r.val/nokTotal)*100).toFixed(1);
+  nokListEl.innerHTML += `<div class="nok-row">
+    <div class="name"><span class="swatch" style="background:${r.color}"></span>${r.name}</div>
+    <div class="num">${r.val.toLocaleString('en-US')}<small>${pct}%</small></div>
+  </div>`;
+});
+
+/* =====================================================================
+   FAKE DATA TABLE (Data page)
+   ===================================================================== */
+const areas = ['MOLDING','CA','ASSEMBLY','STAMPING'];
+const shifts = ['Shift 1','Shift 2','Shift 3'];
+const types = ['BBS following Boxes','100%','BBS','200%','QN','Safelaunch'];
+const reasons = ['Bavure','Carotte','Contamination','Endommagement','Brûlure','Manque matière','problème marquage',''];
+const machines = ['M-513','M-618','M-307','M-206','M-308','A-175','A-230B','M-410'];
+
+function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+function pick(arr){ return arr[rand(0,arr.length-1)]; }
+function randLicense(){
+  const pre = pick(['SLY','3SY','SLDT','3SDT']);
+  return pre + rand(20,34) + pick(['0R','0F','00','3H','T3','T4']) + '000' + rand(1000,9999);
+}
+
+let allRows = [];
+for(let i=0;i<57;i++){
+  const d = new Date(2026,7, rand(1,17), rand(6,21), rand(0,59));
+  const ok = rand(150,900);
+  const nok = Math.random() < 0.35 ? rand(1,15) : 0;
+  allRows.push({
+    date: d.toLocaleDateString('en-GB') + ' ' + d.toTimeString().slice(0,5),
+    shift: pick(shifts),
+    license: randLicense(),
+    area: pick(areas),
+    pn: rand(1000000,1999999) + '-' + rand(1,9),
+    order: '500500' + rand(10000000,99999999),
+    qtyOk: ok,
+    qtyNok: nok,
+    reason: nok>0 ? pick(reasons.filter(r=>r)) : '',
+    batch: '600001' + rand(1000,9999),
+    machine: pick(machines),
+    type: pick(types)
+  });
+}
+allRows.sort((a,b)=> b.date.localeCompare(a.date));
+
+const PAGE_SIZE = 10;
+let currentPage = 1;
+function renderTable(){
+  const tbody = document.getElementById('dataTableBody');
+  const start = (currentPage-1)*PAGE_SIZE;
+  const rows = allRows.slice(start, start+PAGE_SIZE);
+  tbody.innerHTML = rows.map(r=>`<tr>
+    <td>${r.date}</td>
+    <td><span class="shift-chip">${r.shift}</span></td>
+    <td>${r.license}</td>
+    <td>${r.area}</td>
+    <td>${r.pn}</td>
+    <td>${r.order}</td>
+    <td>${r.qtyOk}</td>
+    <td>${r.qtyNok}</td>
+    <td>${r.reason}</td>
+    <td>${r.batch}</td>
+    <td>${r.machine}</td>
+    <td>${r.type}</td>
+  </tr>`).join('');
+
+  const totalPages = Math.ceil(allRows.length/PAGE_SIZE);
+  const pag = document.getElementById('pagination');
+  let html = `<span style="margin-right:auto;color:var(--text-light);font-size:13px;">Showing ${start+1} to ${Math.min(start+PAGE_SIZE,allRows.length)} of ${allRows.length} entries</span>`;
+  html += `<button onclick="gotoPage(1)">&laquo;</button><button onclick="gotoPage(${Math.max(1,currentPage-1)})">&lsaquo;</button>`;
+  for(let p=1;p<=totalPages;p++){
+    html += `<button class="${p===currentPage?'active':''}" onclick="gotoPage(${p})">${p}</button>`;
+  }
+  html += `<button onclick="gotoPage(${Math.min(totalPages,currentPage+1)})">&rsaquo;</button><button onclick="gotoPage(${totalPages})">&raquo;</button>`;
+  pag.innerHTML = html;
+  pag.style.justifyContent = 'space-between';
+}
+function gotoPage(p){ currentPage = p; renderTable(); }
+renderTable();
+
+function exportCsv(){
+  const header = ['Date&time','Shift','License Tag No','Area','PN','Order','Quantity OK','Quantity NOK','Reason','Batch','Machine','Type'];
+  const lines = [header.join(',')].concat(allRows.map(r=>[r.date,r.shift,r.license,r.area,r.pn,r.order,r.qtyOk,r.qtyNok,r.reason,r.batch,r.machine,r.type].join(',')));
+  const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'dsi_fake_export.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+updateGates();
+</script>
+</body>
+</html>
