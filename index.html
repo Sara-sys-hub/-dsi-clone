@@ -413,15 +413,36 @@
 
 <script>
 /* =====================================================================
-   FAKE / DEMO DATA — tout est généré côté client, aucune vraie donnée TE
+   AUTHENTIFICATION — appelle un vrai backend (voir /te-backend).
+   Plus aucun mot de passe ni logique de vérification côté client.
    ===================================================================== */
 
-// ---- fake user directory (in-memory only) ----
-let USERS = [
-  {teid:'admin.te', password:'Admin@1234', fullname:'Admin Demo', role:'Admin'},
-  {teid:'j.dupont', password:'Passw0rd!', fullname:'Jean Dupont', role:'Operator'}
-];
+// Adresse du backend. En local : http://localhost:4000 — en prod, l'URL
+// de ton déploiement (Render/Railway/...), servi en HTTPS obligatoirement.
+const API_BASE = window.TE_API_BASE || 'http://localhost:4000';
+
 let currentUser = null;
+
+async function apiFetch(path, options = {}) {
+  const res = await fetch(API_BASE + path, {
+    ...options,
+    credentials: 'include', // envoie/reçoit le cookie de session httpOnly
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+  });
+  let data = {};
+  try { data = await res.json(); } catch (_) {}
+  return { ok: res.ok, status: res.status, data };
+}
+
+// Restaure la session si un cookie valide existe déjà (rafraîchissement de page).
+async function restoreSession() {
+  const { ok, data } = await apiFetch('/api/auth/me');
+  if (ok && data.user) {
+    currentUser = data.user;
+    refreshNavRight();
+    updateGates();
+  }
+}
 
 // ---- navigation ----
 const pages = ['home','enterdata','data','dashboard','focus'];
@@ -440,14 +461,17 @@ function updateGates(){
   // Enter data page is now the public plant-selection screen (no login gate).
 }
 
-const PLANT_CODES = { L74:'1234', TM2:'5678' };
-function checkPlantCode(plant, inputId){
+async function checkPlantCode(plant, inputId){
   const val = document.getElementById(inputId).value.trim();
   if(!val){ alert('Entrez un code d\'accès pour '+plant+'.'); return; }
-  if(val === PLANT_CODES[plant]){
+  const { ok, data } = await apiFetch('/api/plants/verify', {
+    method: 'POST',
+    body: JSON.stringify({ plant, code: val }),
+  });
+  if(ok){
     alert('Accès autorisé pour '+plant+' (démo). Formulaire de saisie à venir.');
   } else {
-    alert('Code d\'accès invalide pour '+plant+'.');
+    alert(data.error || ('Code d\'accès invalide pour '+plant+'.'));
   }
 }
 
@@ -460,27 +484,39 @@ function togglePw(id){
   el.type = el.type === 'password' ? 'text' : 'password';
 }
 
-function doSignIn(){
+async function doSignIn(){
   const u = document.getElementById('si-username').value.trim();
   const p = document.getElementById('si-password').value;
   const err = document.getElementById('signin-err');
   const ok = document.getElementById('signin-ok');
-  const match = USERS.find(usr => usr.teid === u && usr.password === p);
-  if(match){
+  const btn = document.querySelector('#overlay-signin .submit-btn');
+
+  if(!u || !p){
+    ok.style.display='none'; err.textContent='Identifiants requis.'; err.style.display='block'; return;
+  }
+  if(btn) btn.disabled = true;
+  const { ok: success, status, data } = await apiFetch('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ teid: u, password: p }),
+  });
+  if(btn) btn.disabled = false;
+
+  if(success){
     err.style.display='none'; ok.style.display='block';
-    currentUser = match;
+    currentUser = data.user;
     setTimeout(()=>{
       closeModal('signin'); ok.style.display='none';
       refreshNavRight(); updateGates();
     }, 700);
   } else {
     ok.style.display='none';
-    err.textContent = 'Identifiants invalides. Réessayez.';
+    // status 423 = compte verrouillé (message avec le délai restant renvoyé par le backend)
+    err.textContent = data.error || 'Identifiants invalides. Réessayez.';
     err.style.display='block';
   }
 }
 
-function doSignUp(){
+async function doSignUp(){
   const fullname = document.getElementById('su-fullname').value.trim();
   const teid = document.getElementById('su-teid').value.trim();
   const email = document.getElementById('su-email').value.trim();
@@ -490,6 +526,7 @@ function doSignUp(){
   const plant = document.getElementById('su-plant').value;
   const err = document.getElementById('signup-err');
   const ok = document.getElementById('signup-ok');
+  const btn = document.querySelector('#overlay-signup .submit-btn');
 
   if(!fullname||!teid||!email||!pw||!pw2||!dept||!plant){
     ok.style.display='none'; err.textContent='Tous les champs sont requis.'; err.style.display='block'; return;
@@ -497,10 +534,18 @@ function doSignUp(){
   if(pw !== pw2){
     ok.style.display='none'; err.textContent='Les mots de passe ne correspondent pas.'; err.style.display='block'; return;
   }
-  if(USERS.find(u=>u.teid===teid)){
-    ok.style.display='none'; err.textContent='Ce TE Id existe déjà.'; err.style.display='block'; return;
+
+  if(btn) btn.disabled = true;
+  const { ok: success, data } = await apiFetch('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ fullname, teid, email, password: pw, dept, plant }),
+  });
+  if(btn) btn.disabled = false;
+
+  if(!success){
+    // Le backend valide aussi la robustesse du mot de passe et l'unicité du TE Id/email.
+    ok.style.display='none'; err.textContent = data.error || 'Erreur lors de la création du compte.'; err.style.display='block'; return;
   }
-  USERS.push({teid, password:pw, fullname, role:'Operator'});
   err.style.display='none'; ok.style.display='block';
   setTimeout(()=>{ switchModal('signup','signin'); ok.style.display='none'; }, 900);
 }
@@ -515,12 +560,15 @@ function refreshNavRight(){
       <button class="btn btn-teal" onclick="openModal('signup')">Sign Up</button>`;
   }
 }
-function doSignOut(){
+async function doSignOut(){
+  await apiFetch('/api/auth/logout', { method: 'POST' });
   currentUser = null;
   refreshNavRight();
   updateGates();
   goPage('home');
 }
+
+restoreSession();
 
 /* wordcloud on the home page is now a static image (quality-wordcloud.jpg) — no JS needed */
 
