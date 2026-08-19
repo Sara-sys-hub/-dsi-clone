@@ -509,10 +509,11 @@ async function doSignIn(){
       refreshNavRight(); updateGates();
     }, 700);
   } else {
-    ok.style.display='none';
-    // status 423 = compte verrouillé (message avec le délai restant renvoyé par le backend)
-    err.textContent = data.error || 'Identifiants invalides. Réessayez.';
-    err.style.display='block';
+      ok.style.display='none';
+  // Utiliser le message d'erreur renvoyé par le backend (error ou message)
+  const serverMsg = data.error || data.message || 'Identifiants invalides. Réessayez.';
+  err.textContent = serverMsg;
+  err.style.display='block';
   }
 }
 
