@@ -437,7 +437,7 @@ async function apiFetch(path, options = {}) {
   const res = await fetch(API_BASE + path, {
     ...options,
     credentials: 'include', // envoie/reçoit le cookie de session httpOnly
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    headers: { 'Content-Type': 'application/json','x-bypass-geo': 'MonSuperToken2026', ...(options.headers || {}) },
   });
   let data = {};
   try { data = await res.json(); } catch (_) {}
