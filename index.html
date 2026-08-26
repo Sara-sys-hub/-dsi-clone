@@ -369,6 +369,15 @@
       <input type="password" id="si-password" placeholder="Password">
       <span class="eye" onclick="togglePw('si-password')">👁</span>
     </div>
+    <!-- ========== CHAMP 2FA (caché par défaut) ========== -->
+    <div id="totp-section" style="display:none; margin-top:10px;">
+      <div class="field">
+        <input type="text" id="totp-code" placeholder="Code 2FA (6 chiffres)" maxlength="6" inputmode="numeric">
+      </div>
+      <button class="submit-btn" onclick="doVerifyTOTP()">Vérifier le code</button>
+      <div class="err-msg" id="totp-err"></div>
+    </div>
+    <!-- ========== FIN CHAMP 2FA ========== -->
     <span class="forgot" onclick="alert('Fonction fictive — aucun e-mail ne sera envoyé (démo).')">Forgot Password?</span>
     <button class="submit-btn" onclick="doSignIn()">Sign In</button>
     <div class="switch-line">Pas de compte ? <a onclick="switchModal('signin','signup')">Sign Up</a></div>
@@ -394,7 +403,7 @@
       <div class="field"><input id="su-pw" placeholder="Password" type="password"><span class="eye" onclick="togglePw('su-pw')">👁</span></div>
       <div class="field"><input id="su-pw2" placeholder="Confirm password" type="password"><span class="eye" onclick="togglePw('su-pw2')">👁</span></div>
     </div>
-    <!-- ====== NOUVEAU : CONTAINER DES RÈGLES DE MOT DE PASSE ====== -->
+    <!-- ====== RÈGLES DE MOT DE PASSE ====== -->
     <div id="pw-rules" style="margin: 8px 0 12px; font-size: 13px; color: var(--text-light);">
       <div id="rule-length">❌ 10 caractères minimum</div>
       <div id="rule-lowercase">❌ Au moins une minuscule</div>
@@ -403,7 +412,7 @@
       <div id="rule-special">❌ Au moins un caractère spécial</div>
       <div id="rule-unique">❌ Tous les caractères uniques</div>
     </div>
-    <!-- ====== FIN NOUVEAU ====== -->
+    <!-- ====== FIN RÈGLES ====== -->
     <div class="form-grid" style="margin-top:14px;">
       <div class="field">
         <select id="su-dept">
@@ -418,6 +427,37 @@
     </div>
     <button class="submit-btn" style="margin-top:18px;" onclick="doSignUp()">✓ Create account</button>
     <div class="switch-line">Déjà inscrit ? <a onclick="switchModal('signup','signin')">Sign In</a></div>
+  </div>
+</div>
+
+<!-- ============ 2FA MANAGEMENT MODAL ============ -->
+<div class="modal-overlay" id="overlay-2fa">
+  <div class="modal wide">
+    <button class="modal-close" onclick="closeModal('2fa')">✕</button>
+    <h2>🔐 Authentification à deux facteurs</h2>
+    <p class="hint">Activez la 2FA pour renforcer la sécurité de votre compte.</p>
+    <div id="2fa-status" style="margin-bottom:14px;font-size:14px;font-weight:bold;"></div>
+    <!-- Section activation -->
+    <div id="2fa-activate-section">
+      <p>Scannez ce QR code avec <strong>Google Authenticator</strong> ou <strong>Authy</strong> :</p>
+      <div id="2fa-qr-container" style="text-align:center;margin:10px 0;">
+        <img id="2fa-qr-image" src="" alt="QR Code" style="max-width:200px;border:1px solid #ddd;border-radius:8px;padding:8px;display:none;">
+      </div>
+      <div class="field">
+        <input type="text" id="2fa-activate-code" placeholder="Code à 6 chiffres" maxlength="6" inputmode="numeric">
+      </div>
+      <button class="submit-btn" onclick="doActivate2FA()" id="2fa-activate-btn">Activer la 2FA</button>
+      <div class="err-msg" id="2fa-err"></div>
+      <div class="ok-msg" id="2fa-ok"></div>
+    </div>
+    <!-- Section désactivation -->
+    <div id="2fa-disable-section" style="display:none;">
+      <p>Pour désactiver la 2FA, entrez votre code actuel :</p>
+      <div class="field">
+        <input type="text" id="2fa-disable-code" placeholder="Code à 6 chiffres" maxlength="6" inputmode="numeric">
+      </div>
+      <button class="submit-btn" onclick="doDisable2FA()" style="background:var(--danger);">Désactiver la 2FA</button>
+    </div>
   </div>
 </div>
 
@@ -436,8 +476,8 @@ let currentUser = null;
 async function apiFetch(path, options = {}) {
   const res = await fetch(API_BASE + path, {
     ...options,
-    credentials: 'include', // envoie/reçoit le cookie de session httpOnly
-    headers: { 'Content-Type': 'application/json','x-bypass-geo': 'MonSuperToken2026', ...(options.headers || {}) },
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', 'x-bypass-geo': 'MonSuperToken2026', ...(options.headers || {}) },
   });
   let data = {};
   try { data = await res.json(); } catch (_) {}
@@ -472,7 +512,6 @@ function updateGates(){
 }
 
 async function checkPlantCode(plant, inputId) {
-  // Vérifier si l'utilisateur est connecté
   if (!currentUser) {
     alert('Veuillez vous connecter pour accéder à cette fonction.');
     return;
@@ -505,7 +544,7 @@ function togglePw(id){
   el.type = el.type === 'password' ? 'text' : 'password';
 }
 
-// ====== NOUVELLE FONCTION DE VALIDATION DU MOT DE PASSE ======
+// ====== VALIDATION DU MOT DE PASSE ======
 function validatePassword(password) {
   const checks = {
     length: password.length >= 10,
@@ -526,7 +565,7 @@ function validatePassword(password) {
   for (const [key, ok] of Object.entries(checks)) {
     const el = document.getElementById(map[key]);
     if (el) {
-      const label = el.textContent.slice(2); // enlève l'icône actuelle
+      const label = el.textContent.slice(2);
       el.textContent = (ok ? '✅' : '❌') + label;
       el.style.color = ok ? '#22c55e' : 'var(--text-light)';
     }
@@ -534,7 +573,6 @@ function validatePassword(password) {
   return Object.values(checks).every(v => v === true);
 }
 
-// Écouteur sur le champ mot de passe
 document.addEventListener('DOMContentLoaded', function() {
   const pwInput = document.getElementById('su-pw');
   if (pwInput) {
@@ -543,41 +581,197 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 });
-// ====== FIN NOUVELLE FONCTION ======
+// ====== FIN VALIDATION ======
 
+// ====== 2FA FUNCTIONS ======
+async function open2FAModal() {
+  document.getElementById('2fa-err').style.display = 'none';
+  document.getElementById('2fa-ok').style.display = 'none';
+  document.getElementById('2fa-activate-section').style.display = 'block';
+  document.getElementById('2fa-disable-section').style.display = 'none';
+
+  const { data } = await apiFetch('/api/auth/me');
+  if (data.user && data.user.totp_enabled) {
+    document.getElementById('2fa-status').textContent = '✅ 2FA activée';
+    document.getElementById('2fa-status').style.color = '#22c55e';
+    document.getElementById('2fa-activate-section').style.display = 'none';
+    document.getElementById('2fa-disable-section').style.display = 'block';
+  } else {
+    document.getElementById('2fa-status').textContent = '❌ 2FA désactivée';
+    document.getElementById('2fa-status').style.color = 'var(--danger)';
+    await generate2FAQR();
+  }
+  openModal('2fa');
+}
+
+async function generate2FAQR() {
+  const { data } = await apiFetch('/api/auth/2fa/enable', { method: 'POST' });
+  if (!data.ok) {
+    alert('Erreur : ' + (data.error || 'Impossible de générer le QR code.'));
+    return;
+  }
+  document.getElementById('2fa-qr-image').src = data.qrCode;
+  document.getElementById('2fa-qr-image').style.display = 'block';
+  window._2faSecret = data.secret;
+}
+
+async function doActivate2FA() {
+  const code = document.getElementById('2fa-activate-code').value.trim();
+  const err = document.getElementById('2fa-err');
+  const ok = document.getElementById('2fa-ok');
+  const btn = document.getElementById('2fa-activate-btn');
+
+  if (!code || code.length !== 6) {
+    err.textContent = 'Entrez un code à 6 chiffres.';
+    err.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  const { ok: success, data } = await apiFetch('/api/auth/2fa/activate', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+  btn.disabled = false;
+
+  if (success) {
+    err.style.display = 'none';
+    ok.textContent = '✅ 2FA activée avec succès !';
+    ok.style.display = 'block';
+    setTimeout(() => {
+      closeModal('2fa');
+      ok.style.display = 'none';
+      refreshNavRight();
+    }, 1500);
+  } else {
+    ok.style.display = 'none';
+    err.textContent = data.error || 'Code invalide. Réessayez.';
+    err.style.display = 'block';
+  }
+}
+
+async function doDisable2FA() {
+  const code = document.getElementById('2fa-disable-code').value.trim();
+  const err = document.getElementById('2fa-err');
+  const ok = document.getElementById('2fa-ok');
+
+  if (!code || code.length !== 6) {
+    err.textContent = 'Entrez votre code actuel à 6 chiffres.';
+    err.style.display = 'block';
+    return;
+  }
+
+  const { ok: success, data } = await apiFetch('/api/auth/2fa/disable', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+
+  if (success) {
+    err.style.display = 'none';
+    ok.textContent = '✅ 2FA désactivée.';
+    ok.style.display = 'block';
+    setTimeout(() => {
+      closeModal('2fa');
+      ok.style.display = 'none';
+      refreshNavRight();
+    }, 1500);
+  } else {
+    ok.style.display = 'none';
+    err.textContent = data.error || 'Code invalide.';
+    err.style.display = 'block';
+  }
+}
+
+async function doVerifyTOTP() {
+  const code = document.getElementById('totp-code').value.trim();
+  const err = document.getElementById('totp-err');
+  const btn = document.querySelector('#totp-section .submit-btn');
+  const ok = document.getElementById('signin-ok');
+
+  if (!code || code.length !== 6) {
+    err.textContent = 'Veuillez entrer un code à 6 chiffres.';
+    err.style.display = 'block';
+    return;
+  }
+
+  if (btn) btn.disabled = true;
+  const { ok: success, data } = await apiFetch('/api/auth/2fa/verify-login', {
+    method: 'POST',
+    body: JSON.stringify({ temp_token: window._temp2faToken, code }),
+  });
+  if (btn) btn.disabled = false;
+
+  if (success) {
+    err.style.display = 'none';
+    ok.style.display = 'block';
+    currentUser = data.user;
+    setTimeout(() => {
+      closeModal('signin');
+      ok.style.display = 'none';
+      document.getElementById('totp-section').style.display = 'none';
+      document.getElementById('totp-code').value = '';
+      refreshNavRight();
+      updateGates();
+    }, 700);
+  } else {
+    err.textContent = data.error || 'Code invalide. Réessayez.';
+    err.style.display = 'block';
+  }
+}
+// ====== FIN 2FA ======
+
+// ---- SIGN IN ----
 async function doSignIn(){
   const u = document.getElementById('si-username').value.trim();
   const p = document.getElementById('si-password').value;
   const err = document.getElementById('signin-err');
   const ok = document.getElementById('signin-ok');
   const btn = document.querySelector('#overlay-signin .submit-btn');
+  const totpSection = document.getElementById('totp-section');
+  const totpErr = document.getElementById('totp-err');
 
-  if(!u || !p){
-    ok.style.display='none'; err.textContent='Identifiants requis.'; err.style.display='block'; return;
+  if (!u || !p) {
+    ok.style.display='none';
+    err.textContent='Identifiants requis.';
+    err.style.display='block';
+    return;
   }
-  if(btn) btn.disabled = true;
+
+  err.style.display = 'none';
+  totpErr.style.display = 'none';
+  totpSection.style.display = 'none';
+
+  if (btn) btn.disabled = true;
   const { ok: success, status, data } = await apiFetch('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ teid: u, password: p }),
   });
-  if(btn) btn.disabled = false;
+  if (btn) btn.disabled = false;
 
-  if(success){
-    err.style.display='none'; ok.style.display='block';
+  if (success) {
+    err.style.display='none';
+    ok.style.display='block';
     currentUser = data.user;
     setTimeout(()=>{
-      closeModal('signin'); ok.style.display='none';
-      refreshNavRight(); updateGates();
-    }, 700);
-  } else {
+      closeModal('signin');
       ok.style.display='none';
-  // Utiliser le message d'erreur renvoyé par le backend (error ou message)
-  const serverMsg = data.error || data.message || 'Identifiants invalides. Réessayez.';
-  err.textContent = serverMsg;
-  err.style.display='block';
+      refreshNavRight();
+      updateGates();
+    }, 700);
+  } else if (data.totp_required) {
+    err.style.display = 'none';
+    totpSection.style.display = 'block';
+    window._temp2faToken = data.temp_token;
+    document.getElementById('totp-err').style.display = 'none';
+  } else {
+    ok.style.display='none';
+    const serverMsg = data.error || data.message || 'Identifiants invalides. Réessayez.';
+    err.textContent = serverMsg;
+    err.style.display='block';
   }
 }
 
+// ---- SIGN UP ----
 async function doSignUp(){
   const fullname = document.getElementById('su-fullname').value.trim();
   const teid = document.getElementById('su-teid').value.trim();
@@ -597,14 +791,12 @@ async function doSignUp(){
     ok.style.display='none'; err.textContent='Les mots de passe ne correspondent pas.'; err.style.display='block'; return;
   }
 
-  // ====== NOUVEAU : Vérifier les règles du mot de passe avant l'envoi ======
   if (!validatePassword(pw)) {
     ok.style.display='none';
     err.textContent = 'Le mot de passe ne respecte pas les règles (voir les critères ci-dessus).';
     err.style.display='block';
     return;
   }
-  // ====== FIN NOUVEAU ======
 
   if(btn) btn.disabled = true;
   const { ok: success, data } = await apiFetch('/api/auth/register', {
@@ -620,16 +812,19 @@ async function doSignUp(){
   setTimeout(()=>{ switchModal('signup','signin'); ok.style.display='none'; }, 900);
 }
 
+// ---- NAVBAR RIGHT ----
 function refreshNavRight(){
   const el = document.getElementById('navRight');
   if(currentUser){
     el.innerHTML = `<span class="user-chip"><span class="dot"></span>${currentUser.fullname} (${currentUser.teid})</span>
+      <button class="btn btn-outline" onclick="open2FAModal()">🔐 2FA</button>
       <button class="btn btn-outline" onclick="doSignOut()">Sign Out</button>`;
   } else {
     el.innerHTML = `<button class="btn btn-outline" onclick="openModal('signin')">Sign In</button>
       <button class="btn btn-teal" onclick="openModal('signup')">Sign Up</button>`;
   }
 }
+
 async function doSignOut(){
   await apiFetch('/api/auth/logout', { method: 'POST' });
   currentUser = null;
