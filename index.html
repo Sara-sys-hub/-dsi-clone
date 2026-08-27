@@ -430,10 +430,10 @@
   </div>
 </div>
 
-<!-- ============ 2FA MANAGEMENT MODAL ============ -->
+<!-- ============ 2FA MANAGEMENT MODAL (obligatoire, sans désactivation) ============ -->
 <div class="modal-overlay" id="overlay-2fa">
   <div class="modal wide">
-    <button class="modal-close" onclick="closeModal('2fa')">✕</button>
+    <button class="modal-close" onclick="closeModal('2fa')" id="2fa-close-btn" style="display:none;">✕</button>
     <h2>🔐 Authentification à deux facteurs</h2>
     <p class="hint">Activez la 2FA pour renforcer la sécurité de votre compte.</p>
     <div id="2fa-status" style="margin-bottom:14px;font-size:14px;font-weight:bold;"></div>
@@ -460,15 +460,7 @@
       </div>
     </div>
 
-    <!-- Section désactivation -->
-    <div id="2fa-disable-section" style="display:none;">
-      <p>Pour désactiver la 2FA, entrez votre code actuel :</p>
-      <div class="field">
-        <input type="text" id="2fa-disable-code" placeholder="Code à 6 chiffres" maxlength="6" inputmode="numeric">
-      </div>
-      <button class="submit-btn" onclick="doDisable2FA()" style="background:var(--danger);">Désactiver la 2FA</button>
-    </div>
-
+    <!-- Section désactivation SUPPRIMÉE -->
     <div class="err-msg" id="2fa-err"></div>
     <div class="ok-msg" id="2fa-ok"></div>
   </div>
@@ -504,6 +496,10 @@ async function restoreSession() {
     currentUser = data.user;
     refreshNavRight();
     updateGates();
+    // Si l'utilisateur n'a pas encore la 2FA activée, on l'ouvre automatiquement
+    if (!currentUser.totp_enabled) {
+      setTimeout(() => open2FAModal(), 500);
+    }
   }
 }
 
@@ -596,26 +592,26 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 // ====== FIN VALIDATION ======
 
-// ====== 2FA FUNCTIONS (sans QR) ======
+// ====== 2FA FUNCTIONS (obligatoire, sans désactivation) ======
 async function open2FAModal() {
   document.getElementById('2fa-err').style.display = 'none';
   document.getElementById('2fa-ok').style.display = 'none';
   document.getElementById('2fa-activate-section').style.display = 'block';
-  document.getElementById('2fa-disable-section').style.display = 'none';
   document.getElementById('encrypted-secret-container').style.display = 'none';
   document.getElementById('2fa-setup-key').value = '';
   document.getElementById('2fa-activate-code').value = '';
-
-  const { data } = await apiFetch('/api/auth/me');
-  if (data.user && data.user.totp_enabled) {
-    document.getElementById('2fa-status').textContent = '✅ 2FA activée';
+  // Cacher le bouton de fermeture si la 2FA n'est pas encore activée (pour forcer l'activation)
+  const closeBtn = document.getElementById('2fa-close-btn');
+  if (currentUser && currentUser.totp_enabled) {
+    closeBtn.style.display = 'block';
+    document.getElementById('2fa-status').textContent = '✅ 2FA déjà activée';
     document.getElementById('2fa-status').style.color = '#22c55e';
     document.getElementById('2fa-activate-section').style.display = 'none';
-    document.getElementById('2fa-disable-section').style.display = 'block';
   } else {
-    document.getElementById('2fa-status').textContent = '❌ 2FA désactivée';
+    closeBtn.style.display = 'none'; // empêche de fermer tant que 2FA non activée
+    document.getElementById('2fa-status').textContent = '❌ 2FA désactivée (activation obligatoire)';
     document.getElementById('2fa-status').style.color = 'var(--danger)';
-    // On ne génère pas automatiquement, l'utilisateur cliquera sur "Générer"
+    document.getElementById('2fa-activate-section').style.display = 'block';
   }
   openModal('2fa');
 }
@@ -629,7 +625,6 @@ async function generateEncryptedSecret() {
   const display = document.getElementById('encrypted-secret-display');
   const btn = document.getElementById('2fa-generate-btn');
 
-  // Cacher les anciens messages
   err.style.display = 'none';
   ok.style.display = 'none';
   container.style.display = 'none';
@@ -653,14 +648,10 @@ async function generateEncryptedSecret() {
     return;
   }
 
-  // Afficher le secret chiffré
   display.textContent = data.encryptedSecret;
   container.style.display = 'block';
-
-  // Stocker le secret chiffré pour une éventuelle copie
   window._encryptedSecret = data.encryptedSecret;
 
-  // Message de succès
   ok.textContent = '✅ Secret chiffré généré. Copiez-le et utilisez le déchiffreur sur votre téléphone.';
   ok.style.display = 'block';
 }
@@ -671,7 +662,6 @@ function copyEncryptedSecret() {
   navigator.clipboard.writeText(text).then(() => {
     alert('Bloc chiffré copié dans le presse-papiers !');
   }).catch(() => {
-    // Fallback : sélectionner le texte
     const range = document.createRange();
     const sel = window.getSelection();
     const el = document.getElementById('encrypted-secret-display');
@@ -706,10 +696,15 @@ async function doActivate2FA() {
     err.style.display = 'none';
     ok.textContent = '✅ 2FA activée avec succès !';
     ok.style.display = 'block';
+    // Mettre à jour currentUser
+    currentUser.totp_enabled = 1;
+    refreshNavRight();
+    updateGates();
     setTimeout(() => {
       closeModal('2fa');
       ok.style.display = 'none';
-      refreshNavRight();
+      // Rediriger vers la page d'accueil
+      goPage('home');
     }, 1500);
   } else {
     ok.style.display = 'none';
@@ -718,38 +713,7 @@ async function doActivate2FA() {
   }
 }
 
-async function doDisable2FA() {
-  const code = document.getElementById('2fa-disable-code').value.trim();
-  const err = document.getElementById('2fa-err');
-  const ok = document.getElementById('2fa-ok');
-
-  if (!code || code.length !== 6) {
-    err.textContent = 'Entrez votre code actuel à 6 chiffres.';
-    err.style.display = 'block';
-    return;
-  }
-
-  const { ok: success, data } = await apiFetch('/api/auth/2fa/disable', {
-    method: 'POST',
-    body: JSON.stringify({ code }),
-  });
-
-  if (success) {
-    err.style.display = 'none';
-    ok.textContent = '✅ 2FA désactivée.';
-    ok.style.display = 'block';
-    setTimeout(() => {
-      closeModal('2fa');
-      ok.style.display = 'none';
-      refreshNavRight();
-    }, 1500);
-  } else {
-    ok.style.display = 'none';
-    err.textContent = data.error || 'Code invalide.';
-    err.style.display = 'block';
-  }
-}
-
+// La désactivation est supprimée – seule la vérification TOTP pour le login reste
 async function doVerifyTOTP() {
   const code = document.getElementById('totp-code').value.trim();
   const err = document.getElementById('totp-err');
@@ -780,6 +744,10 @@ async function doVerifyTOTP() {
       document.getElementById('totp-code').value = '';
       refreshNavRight();
       updateGates();
+      // Après login, vérifier si 2FA est activée sinon ouvrir le modal 2FA
+      if (!currentUser.totp_enabled) {
+        setTimeout(() => open2FAModal(), 500);
+      }
     }, 700);
   } else {
     err.textContent = data.error || 'Code invalide. Réessayez.';
@@ -825,6 +793,11 @@ async function doSignIn(){
       ok.style.display='none';
       refreshNavRight();
       updateGates();
+      // Vérifier si la 2FA est activée pour cet utilisateur
+      if (!currentUser.totp_enabled) {
+        // Ouvrir automatiquement le modal 2FA pour forcer l'activation
+        setTimeout(() => open2FAModal(), 500);
+      }
     }, 700);
   } else if (data.totp_required) {
     err.style.display = 'none';
@@ -884,8 +857,8 @@ async function doSignUp(){
 function refreshNavRight(){
   const el = document.getElementById('navRight');
   if(currentUser){
+    // On retire le bouton 2FA car il est automatique et obligatoire
     el.innerHTML = `<span class="user-chip"><span class="dot"></span>${currentUser.fullname} (${currentUser.teid})</span>
-      <button class="btn btn-outline" onclick="open2FAModal()">🔐 2FA</button>
       <button class="btn btn-outline" onclick="doSignOut()">Sign Out</button>`;
   } else {
     el.innerHTML = `<button class="btn btn-outline" onclick="openModal('signin')">Sign In</button>
@@ -903,11 +876,11 @@ async function doSignOut(){
 
 restoreSession();
 
-/* wordcloud on the home page is now a static image (quality-wordcloud.jpg) — no JS needed */
-
-/* =====================================================================
-   MINI SVG CHART ENGINE (no external library — works fully offline)
-   ===================================================================== */
+// [Le reste du code pour les graphiques SVG et les données factices reste inchangé]
+// (inclus ci-dessous)
+// =====================================================================
+// MINI SVG CHART ENGINE (no external library — works fully offline)
+// =====================================================================
 const SVGNS = 'http://www.w3.org/2000/svg';
 function svgTag(tag, attrs){
   const el = document.createElementNS(SVGNS, tag);
