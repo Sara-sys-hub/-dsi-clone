@@ -437,19 +437,29 @@
     <h2>🔐 Authentification à deux facteurs</h2>
     <p class="hint">Activez la 2FA pour renforcer la sécurité de votre compte.</p>
     <div id="2fa-status" style="margin-bottom:14px;font-size:14px;font-weight:bold;"></div>
-    <!-- Section activation -->
+    
+    <!-- Section activation (sans QR, avec chiffrement) -->
     <div id="2fa-activate-section">
-      <p>Scannez ce QR code avec <strong>Google Authenticator</strong> ou <strong>Authy</strong> :</p>
-      <div id="2fa-qr-container" style="text-align:center;margin:10px 0;">
-        <img id="2fa-qr-image" src="" alt="QR Code" style="max-width:200px;border:1px solid #ddd;border-radius:8px;padding:8px;display:none;">
-      </div>
+      <p>1. Saisissez un mot de passe temporaire (que vous utiliserez sur votre téléphone) :</p>
       <div class="field">
-        <input type="text" id="2fa-activate-code" placeholder="Code à 6 chiffres" maxlength="6" inputmode="numeric">
+        <input type="password" id="2fa-setup-key" placeholder="Mot de passe temporaire (min 8 caractères)">
       </div>
-      <button class="submit-btn" onclick="doActivate2FA()" id="2fa-activate-btn">Activer la 2FA</button>
-      <div class="err-msg" id="2fa-err"></div>
-      <div class="ok-msg" id="2fa-ok"></div>
+      <button class="submit-btn" onclick="generateEncryptedSecret()" id="2fa-generate-btn">Générer le secret chiffré</button>
+
+      <div id="encrypted-secret-container" style="display:none; margin-top:15px;">
+        <p>2. Copiez ce bloc chiffré :</p>
+        <div style="background:#f4f6f8; padding:12px; border-radius:6px; font-family:monospace; font-size:14px; word-break:break-all; text-align:center;" id="encrypted-secret-display"></div>
+        <button class="btn btn-outline" onclick="copyEncryptedSecret()" style="margin-top:6px;">📋 Copier</button>
+        <p style="font-size:12px; color:var(--text-light); margin-top:12px;">
+          3. Ouvrez cette page sur votre téléphone : <a href="phone-decrypt.html" target="_blank">Ouvrir le déchiffreur</a>
+        </p>
+        <div class="field" style="margin-top:10px;">
+          <input type="text" id="2fa-activate-code" placeholder="Code à 6 chiffres (depuis votre téléphone)" maxlength="6" inputmode="numeric">
+        </div>
+        <button class="submit-btn" onclick="doActivate2FA()" id="2fa-activate-btn">Activer la 2FA</button>
+      </div>
     </div>
+
     <!-- Section désactivation -->
     <div id="2fa-disable-section" style="display:none;">
       <p>Pour désactiver la 2FA, entrez votre code actuel :</p>
@@ -458,6 +468,9 @@
       </div>
       <button class="submit-btn" onclick="doDisable2FA()" style="background:var(--danger);">Désactiver la 2FA</button>
     </div>
+
+    <div class="err-msg" id="2fa-err"></div>
+    <div class="ok-msg" id="2fa-ok"></div>
   </div>
 </div>
 
@@ -583,12 +596,15 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 // ====== FIN VALIDATION ======
 
-// ====== 2FA FUNCTIONS ======
+// ====== 2FA FUNCTIONS (sans QR) ======
 async function open2FAModal() {
   document.getElementById('2fa-err').style.display = 'none';
   document.getElementById('2fa-ok').style.display = 'none';
   document.getElementById('2fa-activate-section').style.display = 'block';
   document.getElementById('2fa-disable-section').style.display = 'none';
+  document.getElementById('encrypted-secret-container').style.display = 'none';
+  document.getElementById('2fa-setup-key').value = '';
+  document.getElementById('2fa-activate-code').value = '';
 
   const { data } = await apiFetch('/api/auth/me');
   if (data.user && data.user.totp_enabled) {
@@ -599,20 +615,72 @@ async function open2FAModal() {
   } else {
     document.getElementById('2fa-status').textContent = '❌ 2FA désactivée';
     document.getElementById('2fa-status').style.color = 'var(--danger)';
-    await generate2FAQR();
+    // On ne génère pas automatiquement, l'utilisateur cliquera sur "Générer"
   }
   openModal('2fa');
 }
 
-async function generate2FAQR() {
-  const { data } = await apiFetch('/api/auth/2fa/enable', { method: 'POST' });
-  if (!data.ok) {
-    alert('Erreur : ' + (data.error || 'Impossible de générer le QR code.'));
+// Génération du secret chiffré (sans QR)
+async function generateEncryptedSecret() {
+  const setupKey = document.getElementById('2fa-setup-key').value.trim();
+  const err = document.getElementById('2fa-err');
+  const ok = document.getElementById('2fa-ok');
+  const container = document.getElementById('encrypted-secret-container');
+  const display = document.getElementById('encrypted-secret-display');
+  const btn = document.getElementById('2fa-generate-btn');
+
+  // Cacher les anciens messages
+  err.style.display = 'none';
+  ok.style.display = 'none';
+  container.style.display = 'none';
+
+  if (!setupKey || setupKey.length < 8) {
+    err.textContent = 'Veuillez saisir un mot de passe temporaire d\'au moins 8 caractères.';
+    err.style.display = 'block';
     return;
   }
-  document.getElementById('2fa-qr-image').src = data.qrCode;
-  document.getElementById('2fa-qr-image').style.display = 'block';
-  window._2faSecret = data.secret;
+
+  btn.disabled = true;
+  const { ok: success, data } = await apiFetch('/api/auth/2fa/enable', {
+    method: 'POST',
+    body: JSON.stringify({ setupKey }),
+  });
+  btn.disabled = false;
+
+  if (!success) {
+    err.textContent = data.error || 'Erreur lors de la génération du secret.';
+    err.style.display = 'block';
+    return;
+  }
+
+  // Afficher le secret chiffré
+  display.textContent = data.encryptedSecret;
+  container.style.display = 'block';
+
+  // Stocker le secret chiffré pour une éventuelle copie
+  window._encryptedSecret = data.encryptedSecret;
+
+  // Message de succès
+  ok.textContent = '✅ Secret chiffré généré. Copiez-le et utilisez le déchiffreur sur votre téléphone.';
+  ok.style.display = 'block';
+}
+
+function copyEncryptedSecret() {
+  const text = document.getElementById('encrypted-secret-display').textContent;
+  if (!text) return alert('Aucun secret à copier.');
+  navigator.clipboard.writeText(text).then(() => {
+    alert('Bloc chiffré copié dans le presse-papiers !');
+  }).catch(() => {
+    // Fallback : sélectionner le texte
+    const range = document.createRange();
+    const sel = window.getSelection();
+    const el = document.getElementById('encrypted-secret-display');
+    range.selectNodeContents(el);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.execCommand('copy');
+    alert('Bloc copié !');
+  });
 }
 
 async function doActivate2FA() {

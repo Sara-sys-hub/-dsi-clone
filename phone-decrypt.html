@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Déchiffreur 2FA</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; background: #f8f9fa; color: #1e293b; }
+    h2 { margin-top: 0; }
+    .field { margin-bottom: 1rem; }
+    label { display: block; font-weight: 600; margin-bottom: 0.3rem; }
+    textarea, input { width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; box-sizing: border-box; font-family: monospace; }
+    button { background: #15b8a6; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; }
+    button:disabled { opacity: 0.6; }
+    #result { margin-top: 1.5rem; background: #e2e8f0; padding: 1rem; border-radius: 6px; word-break: break-all; font-family: monospace; display: none; }
+    .ok { background: #22c55e; color: white; padding: 0.5rem; border-radius: 6px; }
+    .err { background: #f87171; color: white; padding: 0.5rem; border-radius: 6px; }
+  </style>
+</head>
+<body>
+
+<h2>🔐 Déchiffrer le secret 2FA</h2>
+<p>Utilisez cette page sur votre <strong>téléphone</strong> pour déchiffrer le secret.</p>
+
+<div class="field">
+  <label for="encrypted">Bloc chiffré (copié depuis le PC)</label>
+  <textarea id="encrypted" rows="3" placeholder="Collez le bloc chiffré ici..."></textarea>
+</div>
+
+<div class="field">
+  <label for="password">Mot de passe temporaire (saisi sur le PC)</label>
+  <input id="password" type="password" placeholder="Votre mot de passe temporaire">
+</div>
+
+<button id="decrypt-btn" onclick="decrypt()">Déchiffrer le secret</button>
+
+<div id="result"></div>
+
+<p style="margin-top: 2rem; font-size: 0.9rem; color: #64748b;">Le secret n’est jamais envoyé sur le réseau, tout est fait localement sur votre téléphone.</p>
+
+<script>
+async function decrypt() {
+  const enc = document.getElementById('encrypted').value.trim();
+  const pw = document.getElementById('password').value;
+  const resultDiv = document.getElementById('result');
+  const btn = document.getElementById('decrypt-btn');
+
+  resultDiv.style.display = 'none';
+  resultDiv.className = '';
+
+  if (!enc || !pw) {
+    alert('Veuillez remplir les deux champs.');
+    return;
+  }
+
+  const parts = enc.split('.');
+  if (parts.length !== 4) {
+    resultDiv.textContent = '❌ Bloc chiffré invalide (attendu: salt.iv.authTag.encrypted)';
+    resultDiv.className = 'err';
+    resultDiv.style.display = 'block';
+    return;
+  }
+
+  try {
+    btn.disabled = true;
+    btn.textContent = 'Déchiffrement en cours...';
+
+    const salt = Uint8Array.from(atob(parts[0]), c => c.charCodeAt(0));
+    const iv = Uint8Array.from(atob(parts[1]), c => c.charCodeAt(0));
+    const authTag = Uint8Array.from(atob(parts[2]), c => c.charCodeAt(0));
+    const ciphertext = Uint8Array.from(atob(parts[3]), c => c.charCodeAt(0));
+
+    const encKey = new TextEncoder().encode(pw);
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw',
+      encKey,
+      'PBKDF2',
+      false,
+      ['deriveBits', 'deriveKey']
+    );
+
+    const key = await crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt: salt,
+        iterations: 100000,
+        hash: 'SHA-256',
+      },
+      keyMaterial,
+      {
+        name: 'AES-GCM',
+        length: 256,
+      },
+      false,
+      ['decrypt']
+    );
+
+    const decrypted = await crypto.subtle.decrypt(
+      {
+        name: 'AES-GCM',
+        iv: iv,
+        tagLength: 128,
+      },
+      key,
+      new Uint8Array([...ciphertext, ...authTag])
+    );
+
+    const secret = new TextDecoder().decode(decrypted);
+    resultDiv.textContent = '✅ Secret déchiffré : ' + secret;
+    resultDiv.className = 'ok';
+    resultDiv.style.display = 'block';
+
+    const copyBtn = document.createElement('button');
+    copyBtn.textContent = '📋 Copier le secret';
+    copyBtn.style.marginTop = '0.5rem';
+    copyBtn.style.background = '#15b8a6';
+    copyBtn.onclick = () => {
+      navigator.clipboard.writeText(secret).then(() => alert('Secret copié !'));
+    };
+    resultDiv.appendChild(copyBtn);
+
+  } catch (e) {
+    console.error(e);
+    resultDiv.textContent = '❌ Erreur de déchiffrement : ' + e.message + ' (vérifiez le mot de passe)';
+    resultDiv.className = 'err';
+    resultDiv.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Déchiffrer le secret';
+  }
+}
+</script>
+
+</body>
+</html>
